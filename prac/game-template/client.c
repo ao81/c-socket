@@ -1,44 +1,35 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "common.h"
 
-#define SERVER_ADDR "127.0.0.1"
-#define SERVER_PORT 8080
-#define BUF_SIZE 1024
-
-void game(int sock) {
-
-}
+void game(int sock) {}
 
 int main(void) {
 	int sock;
-	struct sockaddr_in addr;
+	struct sockaddr_in sv_config;
 
+	// ソケット作成
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock == -1) {
-		printf("Error: socket()\n");
+		perror("Error: socket");
 		return -1;
 	}
 
-	bzero(&addr, sizeof(struct sockaddr_in));
+	// 接続先サーバー設定の初期化
+	memset(&sv_config, 0, sizeof(sv_config));
+	sv_config.sin_family = AF_INET;
+	sv_config.sin_port = htons((unsigned short)SERVER_PORT);
+	sv_config.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons((unsigned short)SERVER_PORT);
-	addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-
-	printf("Start connect...\n");
-	if (connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) == -1) {
-		printf("Error: connect()\n");
+	// 接続開始
+	printf("接続を開始します...\n");
+	if (connect(sock, (struct sockaddr *)&sv_config, sizeof(struct sockaddr_in)) == -1) {
+		perror("Error: connect");
 		close(sock);
 		return -1;
 	}
-	printf("Connected!!\n");
+	printf("接続されました！\n");
 
 	game(sock);
 
 	close(sock);
-	return -1;
+	return 0;
 }
