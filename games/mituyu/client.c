@@ -49,7 +49,7 @@ int main(void) {
 			printf("プレイヤー2を待っています...\n");
 			break;
 
-		case WAIT_NAME:
+		case INPUT_NAME:
 			while (1) {
 				// プレイヤー名を登録
 				printf("プレイヤー名を入力してください。\n");

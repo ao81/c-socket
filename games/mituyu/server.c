@@ -63,7 +63,7 @@ int main(void) {
 		printf("プレイヤー2が接続されました!\n\n");
 
 		// どちらも接続されたら
-		packet.type = WAIT_NAME;
+		packet.type = INPUT_NAME;
 		send_size = send(cl_sock[0], &packet, sizeof(GamePacket), 0);
 		if (send_size < sizeof(GamePacket)) {
 			printf("send bytes[%d], original bytes[%zu]\n", send_size, sizeof(GamePacket));

@@ -17,7 +17,7 @@ typedef enum {
 	SEND, // 送信
 	WAIT_PL1, // プレイヤー1待ち
 	WAIT_PL2, // プレイヤー2待ち
-	WAIT_NAME, // プレイヤー名入力待ち
+	INPUT_NAME, // プレイヤー名入力
 	GAME_START, // ゲーム開始
 	ACT, // 行動要求
 	WAIT, // 待機通知
