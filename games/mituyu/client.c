@@ -1,22 +1,9 @@
 #include "common.h"
 
-void game(int sock) {
-	StartData startData;
-
-	printf("密輸ゲームへようこそ。プレイヤーの名前を入力してください。\n");
-	
-	while (1) {
-		if (fgets(startData.name, sizeof(startData.name), stdin) == NULL) {
-			printf("プレイヤー名を入力してください。\n");
-			continue;
-		}
-
-		send(
-	}
-}
-
 int main(void) {
 	int sock;
+	int send_size, recv_size;
+	GamePacket packet;
 	struct sockaddr_in sv_config;
 
 	// ソケット作成
@@ -34,14 +21,75 @@ int main(void) {
 
 	// 接続開始
 	printf("接続を開始します...\n");
-	if (connect(sock, (struct sockaddr *)&sv_config, sizeof(struct sockaddr_in)) == -1) {
+	if (connect(sock, (struct sockaddr*)&sv_config, sizeof(struct sockaddr_in)) == -1) {
 		perror("Error: connect");
 		close(sock);
 		return -1;
 	}
-	printf("接続されました！\n");
+	printf("接続されました！\n\n");
 
-	game(sock);
+	int end_flag = 0;
+
+	while (!end_flag) {
+		memset(&packet, 0, sizeof(GamePacket));
+		recv_size = recv(sock, &packet, sizeof(GamePacket), 0);
+		if (recv_size <= 0) {
+			perror("Error: recv");
+			close(sock);
+			return -1;
+		}
+
+		// 届いたパケットの種類（type）に応じて処理を分ける
+		switch (packet.type) {
+		case WAIT_PL1:
+			printf("プレイヤー1を待っています...\n");
+			break;
+
+		case WAIT_PL2:
+			printf("プレイヤー2を待っています...\n");
+			break;
+
+		case WAIT_NAME:
+			while (1) {
+				// プレイヤー名を登録
+				printf("プレイヤー名を入力してください。\n");
+				if (fgets(packet.name, sizeof(packet.name), stdin) == NULL) {
+					continue;
+				}
+				// 改行文字を削除
+				size_t len = strlen(packet.name);
+				if (len > 0 && packet.name[len - 1] == '\n') {
+					packet.name[len - 1] = '\0';
+				}
+				// 1文字以上入力されていればOK
+				if (strlen(packet.name) > 0) {
+					break;
+				}
+			}
+			// 送信
+			packet.type = SEND;
+			send_size = send(sock, &packet, sizeof(packet), 0);
+			break;
+
+		case GAME_START:
+			printf("ゲームを開始します!\n");
+			// ゲーム開始処理 --------------------------未実装
+			break;
+
+		case SMUGGLE:
+		case INSPECT:
+		case RESULT:
+
+		case GAME_OVER:
+			printf("ゲーム終了です。\n");
+			end_flag = 1;
+			break;
+
+		default:
+			printf("不明なメッセージを受信しました: %d\n", packet.type);
+			break;
+		}
+	}
 
 	close(sock);
 	return 0;
