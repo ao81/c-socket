@@ -101,7 +101,7 @@ int main(void) {
 					cl_fd[i] = 0;
 				} else {
 					recv_buf[recv_size] = '\0';
-					printf("受信: %s\n", recv_buf);
+					printf("受信（fd: %d）: %s\n", cl_fd[i], recv_buf);
 
 					// そのまま帰す
 					send(fd, recv_buf, recv_size, 0);

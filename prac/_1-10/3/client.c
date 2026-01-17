@@ -18,32 +18,34 @@ int main(void) {
 	sv_addr.sin_addr.s_addr = INADDR_ANY;
 
 	printf("接続開始...\n");
-	if (connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) == -1) {
+	if (connect(sock, (struct sockaddr*)&sv_addr, sizeof(sv_addr)) == -1) {
 		perror("Error: connect");
 		close(sock);
 		return -1;
 	}
 	printf("接続成功!\n");
 
-	printf("送信する文字列を送信してください: ");
-	scanf("%s", send_buf);
-	if (send(sock, send_buf, strlen(send_buf), 0) == -1) {
-		perror("Error: send");
-		close(sock);
-		return -1;
-	} else {
-		memset(recv_buf, 0, sizeof(recv_buf));
-		recv_size = recv(sock, recv_buf, sizeof(recv_buf) - 1, 0);
-		if (recv_size == 0) {
-			printf("切断\n");
-			close(sock);
-			return -1;
-		} else if (recv_size == -1) {
-			perror("Error: recv");
+	while (true) {
+		printf("送信する文字列を送信してください: ");
+		scanf("%s", send_buf);
+		if (send(sock, send_buf, strlen(send_buf), 0) == -1) {
+			perror("Error: send");
 			close(sock);
 			return -1;
 		} else {
-			printf("受信したメッセージ: %s\n", recv_buf);
+			memset(recv_buf, 0, sizeof(recv_buf));
+			recv_size = recv(sock, recv_buf, sizeof(recv_buf) - 1, 0);
+			if (recv_size == 0) {
+				printf("切断\n");
+				close(sock);
+				return -1;
+			} else if (recv_size == -1) {
+				perror("Error: recv");
+				close(sock);
+				return -1;
+			} else {
+				printf("受信したメッセージ: %s\n", recv_buf);
+			}
 		}
 	}
 
