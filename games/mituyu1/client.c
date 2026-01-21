@@ -41,32 +41,18 @@ int main(void) {
 
 		// 届いたパケットの種類（type）に応じて処理を分ける
 		switch (packet.type) {
-		MessageType prevType;
-
 		case WAIT_PL1:
 			printf("プレイヤー1を待っています...\n");
-			prevType = WAIT_PL1;
 			break;
 
 		case WAIT_PL2:
 			printf("プレイヤー2を待っています...\n");
-			prevType = WAIT_PL2;
 			break;
 
 		case INPUT_NAME:
 			while (1) {
-				// 待ち状態だった場合プレイヤーの接続メッセージを表示
-				if (prevType == WAIT_PL1) {
-					printf("プレイヤー1が接続されました！\n\n");
-					prevType = NONE;
-				}
-				if (prevType == WAIT_PL2) {
-					printf("プレイヤー2が接続されました！\n\n");
-					prevType = NONE;
-				}
-
 				// プレイヤー名を登録
-				printf("プレイヤー名を入力してください。\n> ");
+				printf("プレイヤー名を入力してください。\n");
 				if (fgets(packet.name, sizeof(packet.name), stdin) == NULL) {
 					continue;
 				}
