@@ -1,1 +1,10 @@
 # c-socket
+
+### .tmux.conf
+```bash
+unbind C-b
+set -g prefix C-Space
+bind C-Space send-prefix
+
+set -g mouse on
+```
