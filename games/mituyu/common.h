@@ -10,11 +10,12 @@
 #include <errno.h>
 
 #define SERVER_ADDR "127.0.0.1"
-#define SERVER_PORT 57001
+#define SERVER_PORT 57801
 #define BUF_SIZE 1024
 
 // 通信の種類
 typedef enum {
+	NONE, // 空
 	SEND, // 送信
 	WAIT_PL1, // プレイヤー1待ち
 	WAIT_PL2, // プレイヤー2待ち

@@ -56,7 +56,7 @@ int main(void) {
 		FD_SET(sv_sock, &readfds);
 		max_sd = sv_sock;
 
-		// クライアントソケットをセットに追加
+		// クライアントのソケットをセットに追加
 		for (i = 0; i < MAX_CLIENTS; i++) {
 			if (cl_sock[i] > 0) {
 				FD_SET(cl_sock[i], &readfds);
@@ -100,7 +100,7 @@ int main(void) {
 							send(cl_sock[i], &packet, sizeof(GamePacket), 0);
 						}
 
-						// 2人揃ったら名前入力を促す
+						// 2人揃ったら名前入力させる
 						if (num_players == MAX_CLIENTS) {
 							printf("2人揃いました。名前入力を要求します。\n");
 							packet.type = INPUT_NAME;
@@ -131,7 +131,7 @@ int main(void) {
 					// 切断処理（関数を使わずそのまま書く）
 					printf("クライアント切断: socket %d\n", sd);
 					close(sd);
-					cl_sock[i] = 0; // その場所を0に戻すだけ（詰めない）
+					cl_sock[i] = 0; // その場所を0に戻すだけ
 					is_name_set[i] = 0;
 					num_players--;
 					printf("現在の人数: %d\n", num_players);
