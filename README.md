@@ -1,5 +1,3 @@
-# c-socket
-
 ### .tmux.conf
 ```bash
 unbind C-b
