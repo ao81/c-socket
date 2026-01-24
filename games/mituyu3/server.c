@@ -13,12 +13,12 @@ int main(void) {
 	int lsock, players = 0;
 	int activity, i, j;
 	int recv_size;
-	int cl_sock[2] = {-1, -1};
+	int cl_sock[2] = { -1, -1 };
 	struct sockaddr_in sv_addr;
 	struct pollfd fds[3]; /* [0]:サーバー, [1][2]:クライアント */
 	Gametype gs;
 	Polling polling;
-	
+
 	memset(&gs, 0, sizeof(gs));
 
 	/* ソケット作成 */
@@ -34,8 +34,16 @@ int main(void) {
 	sv_addr.sin_port = htons(SERVER_PORT);
 	sv_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 
+	/* TIME_WAIT状態を回避 */
+	int opt = 1;
+	if (setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+		perror("Error: setsockopt");
+		close(lsock);
+		return -1;
+	}
+
 	/* ソケットに設定を紐づけ */
-	if (bind(lsock, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) == -1) {
+	if (bind(lsock, (struct sockaddr*)&sv_addr, sizeof(sv_addr)) == -1) {
 		perror("Error: bind");
 		close(lsock);
 		return -1;
@@ -65,7 +73,7 @@ int main(void) {
 			perror("Error: poll");
 			break;
 		}
-		
+
 		/* 新規接続（lsockに動きがあれば） */
 		if (fds[0].revents & POLLIN) {
 			int new_sock = accept(lsock, NULL, NULL);
@@ -128,29 +136,53 @@ int main(void) {
 
 					/* 1人なら待機状態に戻す */
 					if (players == 1) {
+						Polling wait_poll;
+						memset(&wait_poll, 0, sizeof(wait_poll));
+						wait_poll.type = WAIT;
+
 						for (j = 0; j < 2; j++) {
 							if (cl_sock[j] > 0) {
-								Polling wait_poll;
-								memset(&wait_poll, 0, sizeof(wait_poll));
-								wait_poll.type = WAIT;
 								send(cl_sock[j], &wait_poll, sizeof(wait_poll), 0);
 							}
 						}
 					}
 				} else {
-					switch(polling.type) {
-						case NAME:
-							strncpy(gs.names[i], polling.name, sizeof(gs.names[i]) - 1);
-							gs.names[i][sizeof(gs.names[i]) - 1] = '\0';
-							printf("プレイヤー%dの名前を登録しました: %s\n", i + 1, polling.name);
-							break;
+					switch (polling.type) {
+					case NAME:
+						strncpy(gs.names[i], polling.name, sizeof(gs.names[i]) - 1);
+						gs.names[i][sizeof(gs.names[i]) - 1] = '\0';
+						printf("プレイヤー%dの名前を登録しました: %s\n", i + 1, polling.name);
 
-						default:
-							printf("不明なメッセージを受信しました: %d\n", polling.type);
-							break;
+						if (strlen(gs.names[0]) != 0 && strlen(gs.names[1]) != 0) {
+							printf("ゲームを開始します!\n");
+							Polling start_poll;
+							memset(&start_poll, 0, sizeof(start_poll));
+							start_poll.type = START;
+
+							for (j = 0; j < 2; j++) {
+								send(cl_sock[j], &start_poll, sizeof(start_poll), 0);
+							}
+							sleep(1);
+							goto end; /* 未実装のため */
+						}
+
+						break;
+
+					default:
+						printf("不明なメッセージを受信しました: %d\n", polling.type);
+						break;
 					}
 				}
 			}
 		}
 	}
+
+end:
+	for (i = 0; i < 2; i++) {
+		if (cl_sock[i] > 0) {
+			close(cl_sock[i]);
+		}
+	}
+	close(lsock);
+	return 0;
 }

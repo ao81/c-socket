@@ -62,6 +62,11 @@ int main(void) {
 			send(sock, &polling, sizeof(polling), 0);
 			break;
 
+		case START:
+			printf("ゲームを開始します！\n");
+			/* 未実装 */
+			break;
+
 		default:
 			printf("不明なメッセージを受信しました: %d\n", polling.type);
 			break;

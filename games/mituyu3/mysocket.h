@@ -12,7 +12,7 @@
 #include <errno.h>
 
 #define SERVER_ADDR "127.0.0.1"
-#define SERVER_PORT 65001
+#define SERVER_PORT 65501
 #define BUF_SIZE 256
 
 /* ターン数 */
@@ -24,9 +24,10 @@
 
 /* 通信のタイプ */
 typedef enum {
-	NEW_CONNECT,	/* 新規接続時 */
+	NEW_CONNECT,	/* 新規接続 */
 	WAIT,			/* 待ち状態 */
 	NAME,			/* sv->cl:名前送信を促す / cl->sv:名前送信 */
+	START,			/* ゲーム開始 */
 } Type;
 
 /* 通信電文 */
