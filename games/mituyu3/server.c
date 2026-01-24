@@ -13,7 +13,7 @@ typedef struct {
 	long atm[2];		/* ATMの残高 */
 	char names[2][256];	/* プレイヤー名 */
 	int turnCount;		/* 現在のターン */
-	int trade;			/* どちらの密輸ターンか */
+	int trade;			/* どちらの密輸ターンか（0:プレイヤー1 / 1:プレイヤー2） */
 	int entry[2];		/* エントリー状態（0:未エントリー / 1:済） */
 	GameType type;		/* 現在の状態 */
 } GameStatus;
@@ -44,7 +44,7 @@ void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players)
 			cl_sock[i] = new_sock;
 			gs->entry[i] = 1;
 			(*players)++;
-			sendType(cl_sock[i], NEW_CONNECT);
+			sendType(cl_sock[i], NEW_CONN);
 			printf("新規接続: socket %d (現在 %d 人)\n", new_sock, *players);
 			break;
 		}
@@ -59,48 +59,107 @@ void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players)
 	}
 }
 
-void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players) {
-	Polling polling;
-	int recv_size = recv(cl_sock[index], &polling, sizeof(polling), 0);
+void start_next_turn(int cl_sock[2], GameStatus* gs) {
 	int i;
+	Polling send_poll;
 
-	if (recv_size <= 0) {
-		/* 切断処理 */
-		(*players)--;
-		printf("切断: socket %d (現在 %d 人)\n", cl_sock[index], *players);
-		close(cl_sock[index]);
-		cl_sock[index] = -1;
-		gs->entry[index] = 0;
-		gs->names[index][0] = '\0';
-		gs->type = WAIT_CONNECT;
-		for (i = 0; i < 2; i++) {
-			if (cl_sock[i] != -1) {
-				sendType(cl_sock[i], WAIT);
-			}
+	gs->trade = !gs->turnCount % 2;
+
+	printf("ターン %d: プレイヤー %d (%s) の密輸番です。\n",
+		gs->turnCount, gs->trade + 1, gs->names[gs->trade]);
+
+	memset(&send_poll, 0, sizeof(send_poll));
+
+	for (i = 0; i < 2; i++) {
+		if (i == gs->trade) {
+			send_poll.connType = ACTIONS;
+			send_poll.order = 0;
+			send_poll.action.type = WAIT;
+		} else {
+			send_poll.connType = ACTIONS;
+			send_poll.order = 1;
+			send_poll.action.type = TRUNK;
 		}
+		send(cl_sock[i], &send_poll, sizeof(send_poll), 0);
 	}
+}
+
+void update_game(GameStatus* gs, int cl_sock[2]) {
+	gs->turnCount++;
+	start_next_turn(cl_sock, gs);
+}
+
+void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players) {
+	Polling recv_poll;
+	Polling send_poll;
+	memset(&recv_poll, 0, sizeof(recv_poll));
+	memset(&send_poll, 0, sizeof(send_poll));
+
+	int i, recv_size = 0;
 
 	switch (gs->type) {
 	case INPUT_NAME:
-		if (polling.connType == NAME) {
-			strncpy(gs->names[index], polling.name, sizeof(gs->names[index]) - 1);
+		recv_size = recv(cl_sock[index], &recv_poll, sizeof(recv_poll), 0);
+
+		if (recv_size <= 0) {
+			/* 切断処理 */
+			(*players)--;
+			printf("切断: socket %d (現在 %d 人)\n", cl_sock[index], *players);
+			close(cl_sock[index]);
+			cl_sock[index] = -1;
+			gs->entry[index] = 0;
+			gs->names[index][0] = '\0';
+			gs->type = WAIT_CONNECT;
+			for (i = 0; i < 2; i++) {
+				if (cl_sock[i] != -1) {
+					sendType(cl_sock[i], WAIT_CONN);
+				}
+			}
+			break;
+		}
+
+		if (recv_poll.connType == NAME) {
+			strncpy(gs->names[index], recv_poll.name, sizeof(gs->names[index]) - 1);
 			gs->names[index][sizeof(gs->names[index]) - 1] = '\0';
-			printf("プレイヤー%dの名前を登録しました: %s\n", index + 1, polling.name);
-			sendType(cl_sock[index], WAIT);
+			printf("プレイヤー%dの名前を登録しました: %s\n", index + 1, recv_poll.name);
+			sendType(cl_sock[index], WAIT_CONN);
 		}
 		break;
 
 	case PLAYING_GAME:
-		// ゲーム処理（未実装）
+		recv_size = recv(cl_sock[index], &recv_poll, sizeof(recv_poll), 0);
+		if (recv_size <= 0) {
+			/* 切断処理 */
+			(*players)--;
+			printf("切断: socket %d (現在 %d 人)\n", cl_sock[index], *players);
+			close(cl_sock[index]);
+			cl_sock[index] = -1;
+			gs->entry[index] = 0;
+			gs->names[index][0] = '\0';
+			gs->type = WAIT_CONNECT;
+			for (i = 0; i < 2; i++) {
+				if (cl_sock[i] != -1) {
+					sendType(cl_sock[i], WAIT_CONN);
+				}
+			}
+			break;
+		}
+
+		if (index != gs->trade) {
+			sendType(cl_sock[index], WAIT_CONN);
+			break;
+		}
+
+		if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
+			printf("トランクに %ld 円入れました。\n", recv_poll.action.trunk_amount);
+
+			update_game(gs, cl_sock);
+		}
 		break;
 
 	default:
 		break;
 	}
-}
-
-void update_game() {
-
 }
 
 int main(void) {
@@ -195,6 +254,9 @@ int main(void) {
 				for (j = 0; j < 2; j++) {
 					sendType(cl_sock[j], START);
 				}
+				gs.turnCount = 0;
+				start_next_turn(cl_sock, &gs);
+				continue;
 			}
 		}
 	}

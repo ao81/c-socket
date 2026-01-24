@@ -62,11 +62,11 @@ int main(void) {
 		}
 
 		switch (polling.connType) {
-		case NEW_CONNECT:
+		case NEW_CONN:
 			printf("サーバーに接続されました！\n");
 			break;
 
-		case WAIT:
+		case WAIT_CONN:
 			printf("待機中です...\n");
 			break;
 
@@ -97,6 +97,39 @@ int main(void) {
 
 		case START:
 			printf("ゲームを開始します！\n");
+			break;
+
+		case ACTIONS:
+			printf("あなたは %s です。\n", polling.order ? "密輸者" : "検査官");
+
+			switch (polling.action.type) {
+			case WAIT:
+				printf("待機中です...\n");
+				break;
+
+			case TRUNK:
+				printf("トランクに何円入れますか？\n");
+				while (true) {
+					printf(">> ");
+					scanf("%ld", &polling.action.trunk_amount);
+					if (0 <= polling.action.trunk_amount && polling.action.trunk_amount <= MAX_TRUNK) {
+						break;
+					}
+					printf("0以上%d以下の値を入力してください。\n", MAX_TRUNK);
+				}
+				if (send(sock, &polling, sizeof(polling), 0) == -1) {
+					perror("Error: send");
+					return -1;
+				}
+				printf("サーバーに送信しました！\n");
+				break;
+
+			case CHECK:
+				break;
+
+			default:
+				break;
+			}
 			break;
 
 		default:

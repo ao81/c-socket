@@ -28,30 +28,33 @@
 
 /* 通信のタイプ */
 typedef enum {
-	NEW_CONNECT,	/* 新規接続 */
-	WAIT,			/* 待ち状態 */
+	NEW_CONN,	/* 新規接続 */
+	WAIT_CONN,		/* 待ち状態 */
 	NAME,			/* sv->cl:名前送信を促す / cl->sv:名前送信 */
 	START,			/* ゲーム開始 */
-	ACTIONas,		/* アクション */
+	ACTIONS,		/* アクション */
 } ConnType;
 
-/* 検査官のアクション */
+/* アクションのタイプ */
 typedef enum {
-	PASS,	/* パス */
-	DOUBT,	/* ダウト */
-} Inspection;
+	WAIT,	/* 互いの選択待ち */
+	TRUNK,	/* 密輸者:トランクに入れた金 */
+	CHECK,	/* 検査官:トランクの確認 */
+	PASS,	/* 検査官:パス */
+	DOUBT,	/* 検査官:ダウト */
+} ActType;
 
-/* アクション */
+/* アクション (sv->cl:要求 / cl->sv:入力) */
 typedef struct {
-	Inspection inspection;	/* 検査官のアクション */
-	long doubt_amount;		/* ダウト宣言額 */
+	ActType type;	/* アクションタイプ */
 	long trunk_amount;		/* 密輸額 */
+	long doubt_amount;		/* ダウト宣言額 */
 } Actions;
 
 /* 通信電文 */
 typedef struct {
 	int gameNo;			/* ゲームNo */
-	int order;			/* 順番（先行:1 / 後攻:2） */
+	int order;			/* 順番（先行:0 / 後攻:1） */
 	char name[256];		/* 名前用バッファ */
 	Actions action;		/* ゲーム中のデータ */
 	ConnType connType;	/* 通信のタイプ */
