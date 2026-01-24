@@ -9,6 +9,19 @@ typedef struct {
 	int type;			/* 現在の状態 */
 } Gametype;
 
+int sendType(int clsock[2], Type type) {
+	int i;
+	Polling poll;
+	memset(&poll, 0, sizeof(poll));
+	poll.type = type;
+
+	for (i = 0; i < 2; i++) {
+		if (clsock[i] > 0) {
+			send(clsock[i], &poll, sizeof(poll), 0);
+		}
+	}
+}
+
 int main(void) {
 	int lsock, players = 0;
 	int activity, i, j;
@@ -92,9 +105,7 @@ int main(void) {
 
 						printf("新規接続: socket %d (現在 %d 人)\n", new_sock, players);
 
-						memset(&polling, 0, sizeof(polling));
-						polling.type = NEW_CONNECT;
-						send(cl_sock[i], &polling, sizeof(polling), 0); /* 接続確認 */
+						sendType(cl_sock, NEW_CONNECT);
 
 						/* 1人目 */
 						if (players == 1) {
@@ -105,10 +116,7 @@ int main(void) {
 						/* 2人目 */
 						if (players == 2) {
 							printf("2人揃いました。名前入力を要求します。\n");
-							polling.type = NAME;
-							for (j = 0; j < 2; j++) {
-								send(cl_sock[j], &polling, sizeof(polling), 0);
-							}
+							sendType(cl_sock, NAME);
 						}
 
 						break;
@@ -136,15 +144,7 @@ int main(void) {
 
 					/* 1人なら待機状態に戻す */
 					if (players == 1) {
-						Polling wait_poll;
-						memset(&wait_poll, 0, sizeof(wait_poll));
-						wait_poll.type = WAIT;
-
-						for (j = 0; j < 2; j++) {
-							if (cl_sock[j] > 0) {
-								send(cl_sock[j], &wait_poll, sizeof(wait_poll), 0);
-							}
-						}
+						sendType(cl_sock, WAIT);
 					}
 				} else {
 					switch (polling.type) {
@@ -155,13 +155,7 @@ int main(void) {
 
 						if (strlen(gs.names[0]) != 0 && strlen(gs.names[1]) != 0) {
 							printf("ゲームを開始します!\n");
-							Polling start_poll;
-							memset(&start_poll, 0, sizeof(start_poll));
-							start_poll.type = START;
-
-							for (j = 0; j < 2; j++) {
-								send(cl_sock[j], &start_poll, sizeof(start_poll), 0);
-							}
+							sendType(cl_sock, START);
 							sleep(1);
 							goto end; /* 未実装のため */
 						}
