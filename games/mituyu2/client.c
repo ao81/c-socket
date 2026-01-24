@@ -41,7 +41,7 @@ int main(void) {
 
 		// 届いたパケットの種類（type）に応じて処理を分ける
 		switch (packet.type) {
-		MessageType prevType;
+			MessageType prevType;
 
 		case WAIT_PL1:
 			printf("プレイヤー1を待っています...\n");

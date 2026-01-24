@@ -1,5 +1,26 @@
 #include "mysocket.h"
 
+void trim(char *s) {
+	char *p = s;
+	int len = strlen(s);
+
+	/* 末尾のスペースを削除 */
+	while (len > 0 && isspace(s[len - 1])) {
+		s[len - 1] = '\0';
+		len--;
+	}
+
+	/* 先頭のスペースを削除 */
+	while (*p && isspace(*p)) {
+		p++;
+	}
+
+	/* 先頭を詰める */
+	if (p != s) {
+		memmove(s, p, len - (p - s) + 1);
+	}
+}
+
 int main(void) {
 	int sock, send_size, recv_size;
 	struct sockaddr_in sv_addr;
@@ -42,7 +63,7 @@ int main(void) {
 
 		switch (polling.type) {
 		case NEW_CONNECT:
-			printf("正常に接続されました！\n");
+			printf("サーバーに接続されました！\n");
 			break;
 
 		case WAIT:
@@ -50,21 +71,32 @@ int main(void) {
 			break;
 
 		case NAME:
-			printf("名前を入力してください: ");
-			if (fgets(polling.name, BUF_SIZE, stdin) == NULL) {
-				perror("Error: fgets");
-				return -1;
-			}
-			int len = strlen(polling.name);
-			if (polling.name[len - 1] == '\n') {
-				polling.name[--len] = '\0';
+			while (true) {
+				printf("名前を入力してください: ");
+				if (fgets(polling.name, BUF_SIZE, stdin) == NULL) {
+					continue;
+				}
+				int len = strlen(polling.name);
+
+				/* 改行文字を削除 */
+				if (len > 0 && polling.name[len - 1] == '\n') {
+					polling.name[--len] = '\0';
+				}
+
+				/* 前後のスペースを削除 */
+				trim(polling.name);
+
+				/* 1文字以上入力されているか */
+				if (strlen(polling.name) > 0) {
+					break;
+				}
+
 			}
 			send(sock, &polling, sizeof(polling), 0);
 			break;
 
 		case START:
 			printf("ゲームを開始します！\n");
-			/* 未実装 */
 			break;
 
 		default:
@@ -72,4 +104,8 @@ int main(void) {
 			break;
 		}
 	}
+
+end:
+	close(sock);
+	return 0;
 }

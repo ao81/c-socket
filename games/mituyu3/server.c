@@ -9,17 +9,17 @@ typedef struct {
 	int type;			/* 現在の状態 */
 } Gametype;
 
-int sendType(int clsock[2], Type type) {
-	int i;
+int sendType(int clsock, Type type) {
 	Polling poll;
 	memset(&poll, 0, sizeof(poll));
 	poll.type = type;
 
-	for (i = 0; i < 2; i++) {
-		if (clsock[i] > 0) {
-			send(clsock[i], &poll, sizeof(poll), 0);
-		}
+	if (clsock > 0) {
+		send(clsock, &poll, sizeof(poll), 0);
+		return 0;
 	}
+
+	return -1;
 }
 
 int main(void) {
@@ -69,6 +69,8 @@ int main(void) {
 		return -1;
 	}
 
+	printf("サーバー起動!\n");
+
 	while (true) {
 		/* サーバーソケット */
 		fds[0].fd = lsock;
@@ -105,7 +107,7 @@ int main(void) {
 
 						printf("新規接続: socket %d (現在 %d 人)\n", new_sock, players);
 
-						sendType(cl_sock, NEW_CONNECT);
+						sendType(cl_sock[i], NEW_CONNECT);
 
 						/* 1人目 */
 						if (players == 1) {
@@ -116,7 +118,9 @@ int main(void) {
 						/* 2人目 */
 						if (players == 2) {
 							printf("2人揃いました。名前入力を要求します。\n");
-							sendType(cl_sock, NAME);
+							for (j = 0; j < 2; j++) {
+								sendType(cl_sock[j], NAME);
+							}
 						}
 
 						break;
@@ -141,10 +145,13 @@ int main(void) {
 					printf("切断: socket %d (現在 %d 人)\n", cl_sock[i], players);
 					close(cl_sock[i]);
 					cl_sock[i] = -1;
+					gs.entry[i] = 0;
 
 					/* 1人なら待機状態に戻す */
-					if (players == 1) {
-						sendType(cl_sock, WAIT);
+					for (j = 0; j < 2; j++) {
+						if (cl_sock[j] > 0) {
+							sendType(cl_sock[j], WAIT);
+						}
 					}
 				} else {
 					switch (polling.type) {
@@ -152,10 +159,13 @@ int main(void) {
 						strncpy(gs.names[i], polling.name, sizeof(gs.names[i]) - 1);
 						gs.names[i][sizeof(gs.names[i]) - 1] = '\0';
 						printf("プレイヤー%dの名前を登録しました: %s\n", i + 1, polling.name);
+						sendType(cl_sock[i], WAIT);
 
 						if (strlen(gs.names[0]) != 0 && strlen(gs.names[1]) != 0) {
 							printf("ゲームを開始します!\n");
-							sendType(cl_sock, START);
+							for (j = 0; j < 2; j++) {
+								sendType(cl_sock[j], START);
+							}
 							sleep(1);
 							goto end; /* 未実装のため */
 						}

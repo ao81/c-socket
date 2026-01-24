@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/socket.h>
 #include <poll.h>
 #include <sys/types.h>
@@ -35,5 +36,6 @@ typedef struct {
 	int gameNo;		/* ゲームNo */
 	int order;		/* 順番（先行:1 / 後攻:2） */
 	char name[256];	/* 名前用バッファ */
+	int num;		/* 数字用バッファ */
 	Type type;		/* 通信のタイプ */
 } Polling;
