@@ -1,7 +1,7 @@
 #include "mysocket.h"
 
-void trim(char *s) {
-	char *p = s;
+void trim(char* s) {
+	char* p = s;
 	int len = strlen(s);
 
 	/* 末尾のスペースを削除 */
@@ -61,7 +61,7 @@ int main(void) {
 			return -1;
 		}
 
-		switch (polling.type) {
+		switch (polling.connType) {
 		case NEW_CONNECT:
 			printf("サーバーに接続されました！\n");
 			break;
@@ -100,7 +100,7 @@ int main(void) {
 			break;
 
 		default:
-			printf("不明なメッセージを受信しました: %d\n", polling.type);
+			printf("不明なメッセージを受信しました: %d\n", polling.connType);
 			break;
 		}
 	}
