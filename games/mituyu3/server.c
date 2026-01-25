@@ -13,7 +13,7 @@ typedef struct {
 	long atm[2];		/* ATMの残高 */
 	char names[2][256];	/* プレイヤー名 */
 	int turnCount;		/* 現在のターン */
-	int trade;			/* どちらの密輸ターンか（0:プレイヤー1 / 1:プレイヤー2） */
+	int trade;			/* 順番（プレイヤー1:0 / プレイヤー2:1） */
 	int entry[2];		/* エントリー状態（0:未エントリー / 1:済） */
 	GameType type;		/* 現在の状態 */
 } GameStatus;
@@ -63,24 +63,27 @@ void start_next_turn(int cl_sock[2], GameStatus* gs) {
 	int i;
 	Polling send_poll;
 
-	gs->trade = !gs->turnCount % 2;
+	gs->trade = gs->turnCount % 2;
 
-	printf("ターン %d: プレイヤー %d (%s) の密輸番です。\n",
-		gs->turnCount, gs->trade + 1, gs->names[gs->trade]);
-
-	memset(&send_poll, 0, sizeof(send_poll));
+	printf("\n======= ターン %d =======\n", gs->turnCount);
+	printf("密輸者: %s (player %d)\n", gs->names[gs->trade], gs->trade + 1);
+	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
 
 	for (i = 0; i < 2; i++) {
+		memset(&send_poll, 0, sizeof(send_poll));
+		send_poll.connType = ACTIONS;
+
 		if (i == gs->trade) {
-			send_poll.connType = ACTIONS;
-			send_poll.order = 0;
-			send_poll.action.type = WAIT;
-		} else {
-			send_poll.connType = ACTIONS;
-			send_poll.order = 1;
 			send_poll.action.type = TRUNK;
+			send_poll.order = 0;
+		} else {
+			send_poll.action.type = WAIT;
+			send_poll.order = 1;
 		}
-		send(cl_sock[i], &send_poll, sizeof(send_poll), 0);
+
+		if (cl_sock[i] > 0) {
+			send(cl_sock[i], &send_poll, sizeof(send_poll), 0);
+		}
 	}
 }
 
@@ -145,15 +148,15 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			break;
 		}
 
-		if (index != gs->trade) {
-			sendType(cl_sock[index], WAIT_CONN);
-			break;
-		}
-
 		if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
 			printf("トランクに %ld 円入れました。\n", recv_poll.action.trunk_amount);
 
 			update_game(gs, cl_sock);
+		}
+
+		if (index != gs->trade) {
+			sendType(cl_sock[index], WAIT_CONN);
+			break;
 		}
 		break;
 

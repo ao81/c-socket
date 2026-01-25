@@ -54,7 +54,7 @@ typedef struct {
 /* 通信電文 */
 typedef struct {
 	int gameNo;			/* ゲームNo */
-	int order;			/* 順番（先行:0 / 後攻:1） */
+	int order;			/* 順番（プレイヤー1:0 / プレイヤー2:1） */
 	char name[256];		/* 名前用バッファ */
 	Actions action;		/* ゲーム中のデータ */
 	ConnType connType;	/* 通信のタイプ */

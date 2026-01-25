@@ -100,7 +100,7 @@ int main(void) {
 			break;
 
 		case ACTIONS:
-			printf("あなたは %s です。\n", polling.order ? "密輸者" : "検査官");
+			printf("あなたは %s です。\n", polling.order ? "検査官" : "密輸者");
 
 			switch (polling.action.type) {
 			case WAIT:
@@ -117,6 +117,10 @@ int main(void) {
 					}
 					printf("0以上%d以下の値を入力してください。\n", MAX_TRUNK);
 				}
+
+				polling.connType = ACTIONS;
+				polling.action.type = TRUNK;
+
 				if (send(sock, &polling, sizeof(polling), 0) == -1) {
 					perror("Error: send");
 					return -1;
