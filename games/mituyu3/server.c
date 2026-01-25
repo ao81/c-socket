@@ -8,14 +8,22 @@ typedef enum {
 	RESULT,			/* リザルト */
 } GameType;
 
+typedef enum {
+	PHASE_TRUNK,	/* 密輸者:トランクに金を入れるのを待つ */
+	PHASE_CHECK,	/* 検査官:パス/ダウトするのを待つ */
+	PHASE_TURN_END,	/* ターン結果を表示して次へ行く準備 */
+} GamePhase;
+
 typedef struct {
 	long money[2];		/* [0]:先行 / [1]:後攻 */
 	long atm[2];		/* ATMの残高 */
+	long current_trunk;	/* 今回トランクに入れられた金額 (一時的) */
 	char names[2][256];	/* プレイヤー名 */
 	int turnCount;		/* 現在のターン */
 	int trade;			/* 順番（プレイヤー1:0 / プレイヤー2:1） */
 	int entry[2];		/* エントリー状態（0:未エントリー / 1:済） */
 	GameType type;		/* 現在の状態 */
+	GamePhase phase;	/* ゲームのフェーズ */
 } GameStatus;
 
 int sendType(int clsock, ConnType type) {
@@ -31,6 +39,7 @@ int sendType(int clsock, ConnType type) {
 	return -1;
 }
 
+/* 新規接続の受付 */
 void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players) {
 	int i, j;
 
@@ -59,44 +68,45 @@ void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players)
 	}
 }
 
-void start_next_turn(int cl_sock[2], GameStatus* gs) {
-	int i;
-	Polling send_poll;
+/* 密輸者:金額入力を求める */
+void request_smuggler_action(int cl_sock[2], GameStatus* gs) {
+	gs->phase = PHASE_TRUNK;
 
-	gs->trade = gs->turnCount % 2;
+	// 密輸者には入力要求・検査官には待機指示
+	for (int i = 0; i < 2; i++) {
+		Polling p = { 0 };
+		p.connType = ACTIONS;
+		p.order = (i == gs->trade); // 1なら密輸者、0なら検査官
+		p.action.type = (i == gs->trade) ? TRUNK : WAIT;
+		send(cl_sock[i], &p, sizeof(p), 0);
+	}
+}
 
-	printf("\n======= ターン %d =======\n", gs->turnCount);
-	printf("密輸者: %s (player %d)\n", gs->names[gs->trade], gs->trade + 1);
-	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
-
-	for (i = 0; i < 2; i++) {
-		memset(&send_poll, 0, sizeof(send_poll));
-		send_poll.connType = ACTIONS;
-
-		if (i == gs->trade) {
-			send_poll.action.type = TRUNK;
-			send_poll.order = 0;
-		} else {
-			send_poll.action.type = WAIT;
-			send_poll.order = 1;
-		}
-
-		if (cl_sock[i] > 0) {
-			send(cl_sock[i], &send_poll, sizeof(send_poll), 0);
-		}
+/* 検査官:パス/ダウトを求める */
+void request_inspector_action(int cl_sock[2], GameStatus* gs) {
+	for (int i = 0; i < 2; i++) {
+		Polling p = { 0 };
+		p.connType = ACTIONS;
+		p.order = (i == gs->trade);
+		p.action.type = (i == gs->trade) ? WAIT : CHECK;
+		send(cl_sock[i], &p, sizeof(p), 0);
 	}
 }
 
 void update_game(GameStatus* gs, int cl_sock[2]) {
 	gs->turnCount++;
-	start_next_turn(cl_sock, gs);
+	gs->trade = !(gs->turnCount % 2);
+
+	request_smuggler_action(cl_sock, gs);
+
+	printf("\n======= ターン %d =======\n", gs->turnCount);
+	printf("密輸者: %s (player %d)\n", gs->names[gs->trade], gs->trade + 1);
+	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
 }
 
 void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players) {
-	Polling recv_poll;
-	Polling send_poll;
-	memset(&recv_poll, 0, sizeof(recv_poll));
-	memset(&send_poll, 0, sizeof(send_poll));
+	Polling recv_poll = { 0 };
+	Polling send_poll = { 0 };
 
 	int i, recv_size = 0;
 
@@ -148,14 +158,23 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			break;
 		}
 
-		if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
-			printf("トランクに %ld 円入れました。\n", recv_poll.action.trunk_amount);
+		switch (gs->phase) {
+		case PHASE_TRUNK:
+			if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
+				gs->current_trunk = recv_poll.action.trunk_amount;
+				printf("トランクに %ld 円入れました。\n", gs->current_trunk);
+				gs->phase = PHASE_CHECK;
+				request_inspector_action(cl_sock, gs);
+			}
+			break;
 
-			update_game(gs, cl_sock);
-		}
-
-		if (index != gs->trade) {
-			sendType(cl_sock[index], WAIT_CONN);
+		case PHASE_CHECK:
+			/* 検査官からのみメッセージを受け取る */
+			if (index != gs->trade && recv_poll.action.type == CHECK) {
+				/* パス、ダウトが送信されたあとの処理
+				update_game(gs, cl_sock);
+				*/
+			}
 			break;
 		}
 		break;
@@ -258,7 +277,8 @@ int main(void) {
 					sendType(cl_sock[j], START);
 				}
 				gs.turnCount = 0;
-				start_next_turn(cl_sock, &gs);
+				// game_main(cl_sock, &gs);
+				update_game(&gs, cl_sock);
 				continue;
 			}
 		}

@@ -49,6 +49,8 @@ int main(void) {
 	}
 
 	while (true) {
+		int input;
+
 		recv_size = recv(sock, &polling, sizeof(polling), 0);
 		if (recv_size == -1) {
 			perror("Error: recv");
@@ -129,6 +131,19 @@ int main(void) {
 				break;
 
 			case CHECK:
+				printf("搭乗客が来ました！\n");
+				printf("トランクに現金があるかを推理してください。\n");
+				printf("ない:0 ある:1\n");
+				do {
+					printf(">> ");
+					scanf("%d", &input);
+				} while (input != 0 && input != 1);
+
+				if (input == 0) {
+					// パス、ダウトの送信処理の実装
+				} else if (input == 1) {
+
+				}
 				break;
 
 			default:
