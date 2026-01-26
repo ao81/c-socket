@@ -102,7 +102,7 @@ int main(void) {
 			break;
 
 		case ACTIONS:
-			printf("あなたは %s です。\n", polling.order ? "検査官" : "密輸者");
+			printf("\nあなたは %s です。\n", polling.order ? "密輸者" : "検査官");
 
 			switch (polling.action.type) {
 			case WAIT:
@@ -140,12 +140,19 @@ int main(void) {
 				} while (input != 0 && input != 1);
 
 				polling.connType = ACTIONS;
-				polling.action.type = CHECK;
 
 				if (input == 0) {
 					polling.action.type = PASS;
 				} else if (input == 1) {
 					polling.action.type = DOUBT;
+
+					// 密輸額の予想
+					printf("密輸額の予想\n");
+					do {
+						clear_stdin();
+						printf(">> ");
+						scanf("%ld", &polling.action.doubt_amount);
+					} while (!(1 <= polling.action.doubt_amount && polling.action.doubt_amount <= MAX_TRUNK));
 				}
 
 				if (send(sock, &polling, sizeof(polling), 0) == -1) {

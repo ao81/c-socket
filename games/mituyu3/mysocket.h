@@ -59,3 +59,8 @@ typedef struct {
 	Actions action;		/* ゲーム中のデータ */
 	ConnType connType;	/* 通信のタイプ */
 } Polling;
+
+static void clear_stdin() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}

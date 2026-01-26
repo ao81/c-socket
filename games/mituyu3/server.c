@@ -172,6 +172,9 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			/* 検査官からのみメッセージを受け取る */
 			if (index != gs->trade && (recv_poll.action.type == PASS || recv_poll.action.type == DOUBT)) {
 				printf("検査官:[%s]を選択しました。\n", recv_poll.action.type == PASS ? "パス" : "ダウト");
+				if (recv_poll.action.type == DOUBT) {
+					printf("ダウト宣言額は %ld 円です。\n", recv_poll.action.doubt_amount);
+				}
 
 				update_game(gs, cl_sock);
 			}
