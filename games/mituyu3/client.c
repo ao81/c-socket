@@ -139,11 +139,20 @@ int main(void) {
 					scanf("%d", &input);
 				} while (input != 0 && input != 1);
 
-				if (input == 0) {
-					// パス、ダウトの送信処理の実装
-				} else if (input == 1) {
+				polling.connType = ACTIONS;
+				polling.action.type = CHECK;
 
+				if (input == 0) {
+					polling.action.type = PASS;
+				} else if (input == 1) {
+					polling.action.type = DOUBT;
 				}
+
+				if (send(sock, &polling, sizeof(polling), 0) == -1) {
+					perror("Error: send");
+					return -1;
+				}
+				printf("サーバーに送信しました！\n");
 				break;
 
 			default:

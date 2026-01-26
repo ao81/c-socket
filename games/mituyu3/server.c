@@ -162,7 +162,7 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 		case PHASE_TRUNK:
 			if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
 				gs->current_trunk = recv_poll.action.trunk_amount;
-				printf("トランクに %ld 円入れました。\n", gs->current_trunk);
+				printf("密輸者:トランクに %ld 円入れました。\n", gs->current_trunk);
 				gs->phase = PHASE_CHECK;
 				request_inspector_action(cl_sock, gs);
 			}
@@ -170,10 +170,10 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 
 		case PHASE_CHECK:
 			/* 検査官からのみメッセージを受け取る */
-			if (index != gs->trade && recv_poll.action.type == CHECK) {
-				/* パス、ダウトが送信されたあとの処理
+			if (index != gs->trade && (recv_poll.action.type == PASS || recv_poll.action.type == DOUBT)) {
+				printf("検査官:[%s]を選択しました。\n", recv_poll.action.type == PASS ? "パス" : "ダウト");
+
 				update_game(gs, cl_sock);
-				*/
 			}
 			break;
 		}
