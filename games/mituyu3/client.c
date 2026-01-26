@@ -64,11 +64,11 @@ int main(void) {
 		}
 
 		switch (polling.connType) {
-		case NEW_CONN:
+		case CONN_NEW:
 			printf("サーバーに接続されました！\n");
 			break;
 
-		case WAIT_CONN:
+		case CONN_WAIT:
 			printf("待機中です...\n");
 			break;
 
@@ -114,6 +114,7 @@ int main(void) {
 				while (true) {
 					printf(">> ");
 					scanf("%ld", &polling.action.trunk_amount);
+					clear_stdin();
 					if (0 <= polling.action.trunk_amount && polling.action.trunk_amount <= MAX_TRUNK) {
 						break;
 					}
@@ -137,6 +138,7 @@ int main(void) {
 				do {
 					printf(">> ");
 					scanf("%d", &input);
+					clear_stdin();
 				} while (input != 0 && input != 1);
 
 				polling.connType = ACTIONS;
@@ -149,9 +151,9 @@ int main(void) {
 					// 密輸額の予想
 					printf("密輸額の予想\n");
 					do {
-						clear_stdin();
 						printf(">> ");
 						scanf("%ld", &polling.action.doubt_amount);
+						clear_stdin();
 					} while (!(1 <= polling.action.doubt_amount && polling.action.doubt_amount <= MAX_TRUNK));
 				}
 
@@ -160,6 +162,14 @@ int main(void) {
 					return -1;
 				}
 				printf("サーバーに送信しました！\n");
+				break;
+
+			case ROUND_RESULT:
+				printf("次のターンを開始します！\n");
+				/*if (send(sock, &polling, sizeof(polling), 0) == -1) {
+					perror("Error: send");
+					return -1;
+				}*/
 				break;
 
 			default:

@@ -28,8 +28,8 @@
 
 /* 通信のタイプ */
 typedef enum {
-	NEW_CONN,	/* 新規接続 */
-	WAIT_CONN,		/* 待ち状態 */
+	CONN_NEW,		/* 新規接続 */
+	CONN_WAIT,		/* 待ち状態 */
 	NAME,			/* sv->cl:名前送信を促す / cl->sv:名前送信 */
 	START,			/* ゲーム開始 */
 	ACTIONS,		/* アクション */
@@ -37,11 +37,12 @@ typedef enum {
 
 /* アクションのタイプ */
 typedef enum {
-	WAIT,	/* 互いの選択待ち */
-	TRUNK,	/* 密輸者:トランクに入れた金 */
-	CHECK,	/* 検査官:トランクの確認 */
-	PASS,	/* 検査官:パス */
-	DOUBT,	/* 検査官:ダウト */
+	WAIT,			/* 互いの選択待ち */
+	TRUNK,			/* 密輸者:トランクに入れた金 */
+	CHECK,			/* 検査官:トランクの確認 */
+	PASS,			/* 検査官:パス */
+	DOUBT,			/* 検査官:ダウト */
+	ROUND_RESULT,	/* リザルト */
 } ActType;
 
 /* アクション (sv->cl:要求 / cl->sv:入力) */
@@ -61,6 +62,6 @@ typedef struct {
 } Polling;
 
 static void clear_stdin() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
+	int c;
+	while ((c = getchar()) != '\n' && c != EOF);
 }

@@ -2,10 +2,10 @@
 
 typedef enum {
 	INITIAL,		/* 初期状態 */
-	WAIT_CONNECT,	/* 接続待ち */
+	CONN_WAITECT,	/* 接続待ち */
 	INPUT_NAME,		/* 名前入力 */
 	PLAYING_GAME,	/* ゲームプレイ */
-	RESULT,			/* リザルト */
+	RESULT,				/* リザルト */
 } GameType;
 
 typedef enum {
@@ -15,16 +15,31 @@ typedef enum {
 } GamePhase;
 
 typedef struct {
-	long money[2];		/* [0]:先行 / [1]:後攻 */
+	long trunk_amount;	/* 密輸者:トランクに入れた金額 */
+	int check;			/* パス(0)/ダウト(1) */
+	long doubt_amount;	/* ダウト時の宣言額 */
+} RoundData;
+
+typedef struct {
+	long money[2];		/* [0]:プレイヤー1 / [1]:プレイヤー2 */
 	long atm[2];		/* ATMの残高 */
-	long current_trunk;	/* 今回トランクに入れられた金額 (一時的) */
 	char names[2][256];	/* プレイヤー名 */
 	int turnCount;		/* 現在のターン */
 	int trade;			/* 順番（プレイヤー1:0 / プレイヤー2:1） */
 	int entry[2];		/* エントリー状態（0:未エントリー / 1:済） */
 	GameType type;		/* 現在の状態 */
 	GamePhase phase;	/* ゲームのフェーズ */
+	RoundData round;	/* 現在のラウンドの選択の一時的な保管場所 */
 } GameStatus;
+
+/* プロトタイプ宣言 */
+int sendType(int clsock, ConnType type);
+void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players);
+void request_smuggler_action(int cl_sock[2], GameStatus* gs);
+void request_inspector_action(int cl_sock[2], GameStatus* gs);
+void round_result(int cl_sock[2], GameStatus* gs);
+void update_game(GameStatus* gs, int cl_sock[2]);
+void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players);
 
 int sendType(int clsock, ConnType type) {
 	Polling poll;
@@ -53,7 +68,7 @@ void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players)
 			cl_sock[i] = new_sock;
 			gs->entry[i] = 1;
 			(*players)++;
-			sendType(cl_sock[i], NEW_CONN);
+			sendType(cl_sock[i], CONN_NEW);
 			printf("新規接続: socket %d (現在 %d 人)\n", new_sock, *players);
 			break;
 		}
@@ -72,7 +87,7 @@ void accept_new_players(int lsock, int cl_sock[2], GameStatus* gs, int* players)
 void request_smuggler_action(int cl_sock[2], GameStatus* gs) {
 	gs->phase = PHASE_TRUNK;
 
-	// 密輸者には入力要求・検査官には待機指示
+	/* 密輸者には入力要求・検査官には待機指示 */
 	for (int i = 0; i < 2; i++) {
 		Polling p = { 0 };
 		p.connType = ACTIONS;
@@ -93,6 +108,55 @@ void request_inspector_action(int cl_sock[2], GameStatus* gs) {
 	}
 }
 
+/* ラウンド終了ごとの処理 */
+void round_result(int cl_sock[2], GameStatus* gs) {
+	int i;
+	int smuggler = gs->trade;
+	int inspector = !gs->trade;
+	int deposit = gs->round.doubt_amount / 2; /* 保証金 */
+
+	/* パス */
+	if (gs->round.check == 0) {
+		gs->money[smuggler] += gs->round.trunk_amount;
+		goto label;
+		return;
+	}
+
+	/* ダウト：保証金を先に支払う */
+	gs->money[inspector] -= deposit;
+
+	/* トランクが空 */
+	if (gs->round.trunk_amount == 0) {
+		gs->money[smuggler] += deposit;
+		goto label;
+		return;
+	}
+
+	/* 宣言金額以下 → 密輸失敗 */
+	if (gs->round.trunk_amount <= gs->round.doubt_amount) {
+		gs->money[inspector] += gs->round.trunk_amount + deposit;
+		goto label;
+		return;
+	}
+
+	/* 宣言金額超過 → 密輸成功 */
+	gs->money[smuggler] += gs->round.trunk_amount + deposit;
+
+label:
+	printf("変動後金額\n");
+	printf("%s (player %d) => %ld\n", gs->names[gs->trade], gs->trade + 1, gs->money[gs->trade]);
+	printf("%s (player %d) => %ld\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1), gs->money[gs->trade == 0 ? 1 : 0]);
+
+	gs->round.trunk_amount = 0;
+	gs->round.doubt_amount = 0;
+	gs->round.check = -1;
+
+	update_game(gs, cl_sock);
+	/*for (i = 0; i < 2; i++) {
+		sendType(cl_sock[i], RESULT);
+	}*/
+}
+
 void update_game(GameStatus* gs, int cl_sock[2]) {
 	gs->turnCount++;
 	gs->trade = !(gs->turnCount % 2);
@@ -104,10 +168,9 @@ void update_game(GameStatus* gs, int cl_sock[2]) {
 	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
 }
 
+/* クライアントからの通信を処理する */
 void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players) {
 	Polling recv_poll = { 0 };
-	Polling send_poll = { 0 };
-
 	int i, recv_size = 0;
 
 	switch (gs->type) {
@@ -122,12 +185,12 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			cl_sock[index] = -1;
 			gs->entry[index] = 0;
 			gs->names[index][0] = '\0';
-			gs->type = WAIT_CONNECT;
+			/*gs->type = CONN_WAITECT;
 			for (i = 0; i < 2; i++) {
 				if (cl_sock[i] != -1) {
-					sendType(cl_sock[i], WAIT_CONN);
+					sendType(cl_sock[i], CONN_WAIT);
 				}
-			}
+			}*/
 			break;
 		}
 
@@ -135,12 +198,13 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			strncpy(gs->names[index], recv_poll.name, sizeof(gs->names[index]) - 1);
 			gs->names[index][sizeof(gs->names[index]) - 1] = '\0';
 			printf("プレイヤー%dの名前を登録しました: %s\n", index + 1, recv_poll.name);
-			sendType(cl_sock[index], WAIT_CONN);
+			sendType(cl_sock[index], CONN_WAIT);
 		}
 		break;
 
 	case PLAYING_GAME:
 		recv_size = recv(cl_sock[index], &recv_poll, sizeof(recv_poll), 0);
+
 		if (recv_size <= 0) {
 			/* 切断処理 */
 			(*players)--;
@@ -149,20 +213,20 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 			cl_sock[index] = -1;
 			gs->entry[index] = 0;
 			gs->names[index][0] = '\0';
-			gs->type = WAIT_CONNECT;
+			/*gs->type = CONN_WAITECT;
 			for (i = 0; i < 2; i++) {
 				if (cl_sock[i] != -1) {
-					sendType(cl_sock[i], WAIT_CONN);
+					sendType(cl_sock[i], CONN_WAIT);
 				}
-			}
+			}*/
 			break;
 		}
 
 		switch (gs->phase) {
 		case PHASE_TRUNK:
 			if (recv_size > 0 && recv_poll.connType == ACTIONS && recv_poll.action.type == TRUNK) {
-				gs->current_trunk = recv_poll.action.trunk_amount;
-				printf("密輸者:トランクに %ld 円入れました。\n", gs->current_trunk);
+				gs->round.trunk_amount = recv_poll.action.trunk_amount;
+				printf("密輸者:トランクに %ld 円入れました。\n", gs->round.trunk_amount);
 				gs->phase = PHASE_CHECK;
 				request_inspector_action(cl_sock, gs);
 			}
@@ -171,13 +235,29 @@ void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players)
 		case PHASE_CHECK:
 			/* 検査官からのみメッセージを受け取る */
 			if (index != gs->trade && (recv_poll.action.type == PASS || recv_poll.action.type == DOUBT)) {
+				gs->round.check = (recv_poll.action.type == PASS) ? 0 : 1;
 				printf("検査官:[%s]を選択しました。\n", recv_poll.action.type == PASS ? "パス" : "ダウト");
 				if (recv_poll.action.type == DOUBT) {
-					printf("ダウト宣言額は %ld 円です。\n", recv_poll.action.doubt_amount);
+					gs->round.doubt_amount = recv_poll.action.doubt_amount;
+					printf("\tダウト宣言額は %ld 円です。\n", recv_poll.action.doubt_amount);
 				}
 
-				update_game(gs, cl_sock);
+				// update_game(gs, cl_sock);
+				gs->phase = PHASE_TURN_END;
+				round_result(cl_sock, gs);
 			}
+			break;
+
+		case PHASE_TURN_END:
+			printf("変動後金額\n");
+			printf("%s (player %d) => %ld\n", gs->names[gs->trade], gs->trade + 1, gs->money[gs->trade]);
+			printf("%s (player %d) => %ld\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1), gs->money[gs->trade == 0 ? 1 : 0]);
+
+			gs->round.trunk_amount = 0;
+			gs->round.doubt_amount = 0;
+			gs->round.check = -1;
+
+			update_game(gs, cl_sock);
 			break;
 		}
 		break;
@@ -238,7 +318,7 @@ int main(void) {
 		return -1;
 	}
 
-	gs.type = WAIT_CONNECT;
+	gs.type = CONN_WAITECT;
 	printf("サーバー起動!\n");
 
 	while (true) {
