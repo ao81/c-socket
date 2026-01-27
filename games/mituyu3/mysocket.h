@@ -45,11 +45,19 @@ typedef enum {
 	ROUND_RESULT,	/* リザルト */
 } ActType;
 
+/* ターンごとのリザルトのタイプ */
+typedef enum {
+    RESULT_PASS,              /* パス：検査官がスルー */
+    RESULT_DOUBT_INNOCENT,    /* ダウト失敗：中身が0円だった */
+    RESULT_DOUBT_CAUGHT,      /* ダウト成功：中身が予想額以下 */
+    RESULT_DOUBT_OVERFLOW     /* ダウト失敗：中身が予想額より多い */
+} ResultType;
+
 /* アクション (sv->cl:要求 / cl->sv:入力) */
 typedef struct {
-	ActType type;	/* アクションタイプ */
-	long trunk_amount;		/* 密輸額 */
-	long doubt_amount;		/* ダウト宣言額 */
+	ActType type;		/* アクションタイプ */
+	long trunk_amount;	/* 密輸額 */
+	long doubt_amount;	/* ダウト宣言額 */
 } Actions;
 
 /* 通信電文 */
