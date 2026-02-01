@@ -5,7 +5,7 @@ typedef enum {
 	CONN_WAITECT,	/* 接続待ち */
 	INPUT_NAME,		/* 名前入力 */
 	PLAYING_GAME,	/* ゲームプレイ */
-	RESULT,				/* リザルト */
+	RESULT,			/* リザルト */
 } GameType;
 
 typedef enum {
@@ -30,6 +30,7 @@ typedef struct {
 	GameType type;		/* 現在の状態 */
 	GamePhase phase;	/* ゲームのフェーズ */
 	RoundData round;	/* 現在のラウンドの選択の一時的な保管場所 */
+	int isEnd;			/* ゲームが終了したか */
 } GameStatus;
 
 /* プロトタイプ宣言 */
@@ -159,8 +160,9 @@ void round_result(int cl_sock[2], GameStatus* gs) {
 }
 
 void update_game(GameStatus* gs, int cl_sock[2]) {
-	if (gs->turnCount > TURN_COUNT) {
+	if (gs->turnCount >= TURN_COUNT) {
 		end_game(gs, cl_sock);
+		return;
 	}
 
 	gs->turnCount++;
@@ -168,13 +170,13 @@ void update_game(GameStatus* gs, int cl_sock[2]) {
 
 	request_smuggler_action(cl_sock, gs);
 
-	printf("\n======= ターン %d =======\n", gs->turnCount);
+	printf("\n============ ターン %d ============\n", gs->turnCount);
 	printf("密輸者: %s (player %d)\n", gs->names[gs->trade], gs->trade + 1);
 	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
 }
 
 void end_game(GameStatus* gs, int cl_sock[2]) {
-	printf("\n======= ゲーム終了 =======\n");
+	printf("\n============ ゲーム終了 ============\n");
 
 	int smuggler = gs->trade;
 	int inspector = 1 - gs->trade;
@@ -201,7 +203,17 @@ void end_game(GameStatus* gs, int cl_sock[2]) {
 
 	printf("==========================\n");
 
+	gs->isEnd = 1;
 
+	Polling p = { 0 };
+	p.connType = END;
+	p.winner = winner;
+	for (int i = 0; i < 2; i++) {
+		if (cl_sock[i] > 0) {
+			p.order = i;
+			send(cl_sock[i], &p, sizeof(p), 0);
+		}
+	}
 }
 
 /* クライアントからの通信を処理する */
@@ -335,6 +347,10 @@ int main(void) {
 	printf("サーバー起動!\n");
 
 	while (true) {
+		if (gs.isEnd == 1) {
+			goto end;
+		}
+
 		/* サーバーソケット */
 		fds[0].fd = lsock;
 		fds[0].events = POLLIN;

@@ -17,7 +17,7 @@
 #define BUF_SIZE 256
 
 /* ターン数 */
-#define TURN_COUNT 50
+#define TURN_COUNT 4
 
 /* トランクに入る最大金額 */
 #define MAX_TRUNK 100000000 /* 1億 */
@@ -33,6 +33,7 @@ typedef enum {
 	NAME,			/* sv->cl:名前送信を促す / cl->sv:名前送信 */
 	START,			/* ゲーム開始 */
 	ACTIONS,		/* アクション */
+	END,			/* ゲーム終了 */
 } ConnType;
 
 /* アクションのタイプ */
@@ -67,6 +68,7 @@ typedef struct {
 	char name[256];		/* 名前用バッファ */
 	Actions action;		/* ゲーム中のデータ */
 	ConnType connType;	/* 通信のタイプ */
+	int winner;			/* 0:密輸者勝利  1:検査官勝利  2:引き分け */
 } Polling;
 
 static void clear_stdin() {

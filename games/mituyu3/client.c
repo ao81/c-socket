@@ -170,12 +170,33 @@ int main(void) {
 					perror("Error: send");
 					return -1;
 				}*/
-				break;
+				break;;
 
 			default:
 				break;
 			}
 			break;
+
+		case END:
+			printf("\n======= ゲーム終了 =======\n");
+
+			const char* result_msgs[] = { "勝利", "敗北", "引き分け" };
+			int result_idx;
+
+			if (polling.winner == 2) {
+				result_idx = 2;
+			} else {
+				int is_smuggler = (polling.order == 1);
+				if ((is_smuggler && polling.winner == 0) || (!is_smuggler && polling.winner == 1)) {
+					result_idx = 0; /* 勝利 */
+				} else {
+					result_idx = 1; /* 敗北 */
+				}
+			}
+
+			printf("結果: %s\n", result_msgs[result_idx]);
+			printf("==========================\n");
+			goto end;
 
 		default:
 			printf("不明なメッセージを受信しました: %d\n", polling.connType);
