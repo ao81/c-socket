@@ -39,6 +39,7 @@ void request_smuggler_action(int cl_sock[2], GameStatus* gs);
 void request_inspector_action(int cl_sock[2], GameStatus* gs);
 void round_result(int cl_sock[2], GameStatus* gs);
 void update_game(GameStatus* gs, int cl_sock[2]);
+void end_game(GameStatus* gs, int cl_sock[2]);
 void handle_client_data(int index, int cl_sock[2], GameStatus* gs, int* players);
 
 int sendType(int clsock, ConnType type) {
@@ -158,6 +159,10 @@ void round_result(int cl_sock[2], GameStatus* gs) {
 }
 
 void update_game(GameStatus* gs, int cl_sock[2]) {
+	if (gs->turnCount > TURN_COUNT) {
+		end_game(gs, cl_sock);
+	}
+
 	gs->turnCount++;
 	gs->trade = !(gs->turnCount % 2);
 
@@ -166,6 +171,37 @@ void update_game(GameStatus* gs, int cl_sock[2]) {
 	printf("\n======= ターン %d =======\n", gs->turnCount);
 	printf("密輸者: %s (player %d)\n", gs->names[gs->trade], gs->trade + 1);
 	printf("検査官: %s (player %d)\n", gs->names[gs->trade == 0 ? 1 : 0], (gs->trade == 0 ? 2 : 1));
+}
+
+void end_game(GameStatus* gs, int cl_sock[2]) {
+	printf("\n======= ゲーム終了 =======\n");
+
+	int smuggler = gs->trade;
+	int inspector = 1 - gs->trade;
+
+	int winner; /* 0:密輸者勝利  1:検査官勝利  2:引き分け */
+	if (gs->money[smuggler] > gs->money[inspector]) {
+		winner = 0; // 密輸者勝利
+	} else if (gs->money[inspector] > gs->money[smuggler]) {
+		winner = 1; // 検査官勝利
+	} else {
+		winner = 2; // 引き分け
+	}
+
+	char* message[] = { "勝利", "敗北", "引き分け" };
+
+	int smuggler_res = (winner == 2) ? 2 : (winner == 0 ? 0 : 1); /* 密輸者目線 */
+	int inspector_res = (winner == 2) ? 2 : (winner == 1 ? 0 : 1); /* 検査官目線 */
+
+	printf("密輸者: %s (player %d) [%s] 所持金: %ld 円\n",
+		gs->names[smuggler], smuggler + 1, message[smuggler_res], gs->money[smuggler]);
+
+	printf("検査官: %s (player %d) [%s] 所持金: %ld 円\n",
+		gs->names[inspector], inspector + 1, message[inspector_res], gs->money[inspector]);
+
+	printf("==========================\n");
+
+
 }
 
 /* クライアントからの通信を処理する */
