@@ -61,6 +61,13 @@ typedef struct {
 	long doubt_amount;	/* ダウト宣言額 */
 } Actions;
 
+/* 最終結果表示用データ */
+typedef struct {
+	long amount[2];		/* プレイヤーの貯金額 */
+	char name[2][256];	/* プレイヤーの名前 */
+	int winner;			/* 0:密輸者勝利  1:検査官勝利  2:引き分け */
+} Results;
+
 /* 通信電文 */
 typedef struct {
 	int gameNo;			/* ゲームNo */
@@ -68,7 +75,7 @@ typedef struct {
 	char name[256];		/* 名前用バッファ */
 	Actions action;		/* ゲーム中のデータ */
 	ConnType connType;	/* 通信のタイプ */
-	int winner;			/* 0:密輸者勝利  1:検査官勝利  2:引き分け */
+	Results result;		/* 最終結果表示用データ */
 } Polling;
 
 static void clear_stdin() {

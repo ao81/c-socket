@@ -182,19 +182,28 @@ int main(void) {
 
 			const char* result_msgs[] = { "勝利", "敗北", "引き分け" };
 			int result_idx;
+			int winner = polling.result.winner;
 
-			if (polling.winner == 2) {
+			if (winner == 2) {
 				result_idx = 2;
 			} else {
 				int is_smuggler = (polling.order == 1);
-				if ((is_smuggler && polling.winner == 0) || (!is_smuggler && polling.winner == 1)) {
+				if ((is_smuggler && winner == 0) || (!is_smuggler && winner == 1)) {
 					result_idx = 0; /* 勝利 */
 				} else {
 					result_idx = 1; /* 敗北 */
 				}
 			}
 
+			long pl1 = polling.result.amount[0];
+			long pl2 = polling.result.amount[1];
+
+			char *pl1_name = polling.result.name[0];
+			char *pl2_name = polling.result.name[1];
+
 			printf("結果: %s\n", result_msgs[result_idx]);
+			printf("プレイヤー1 (%s) の所持金: %ld円\n", pl1_name, pl1);
+			printf("プレイヤー2 (%s) の所持金: %ld円\n", pl2_name, pl2);
 			printf("==========================\n");
 			goto end;
 

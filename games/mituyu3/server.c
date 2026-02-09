@@ -207,7 +207,18 @@ void end_game(GameStatus* gs, int cl_sock[2]) {
 
 	Polling p = { 0 };
 	p.connType = END;
-	p.winner = winner;
+	p.result.winner = winner;
+
+	p.result.amount[0] = gs->money[0];
+	p.result.amount[1] = gs->money[1];
+
+	/*p.result.name[0] = gs->names[0];
+	p.result.name[1] = gs->names[1];*/
+	strncpy(p.result.name[0], gs->names[0], sizeof(p.result.name[0]));
+	p.result.name[0][sizeof(p.result.name[0]) - 1] = '\0';
+	strncpy(p.result.name[1], gs->names[1], sizeof(p.result.name[1]));
+	p.result.name[1][sizeof(p.result.name[1]) - 1] = '\1';
+
 	for (int i = 0; i < 2; i++) {
 		if (cl_sock[i] > 0) {
 			p.order = i;
